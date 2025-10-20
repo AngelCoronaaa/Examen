@@ -1,0 +1,202 @@
+﻿@page "/productos"
+@using System.ComponentModel.DataAnnotations
+<PageTitle>Productos</PageTitle>
+
+<h2>Productos</h2>
+
+@if (!mostrarExistencias)
+{
+<EditForm Model="model" OnValidSubmit="Guardar">
+<DataAnnotationsValidator />
+<ValidationSummary />
+        <div class="mb-3">
+            <label class="form-label">Número de inventario</label>
+            <InputNumber @bind-Value="model.NumInventario" class="form-control" />
+            <ValidationMessage For="@(() => model.NumInventario)" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Nombre</label>
+            <InputText @bind-Value="model.Nombre" class="form-control" />
+            <ValidationMessage For="@(() => model.Nombre)" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Departamento</label>
+            <InputSelect @bind-Value="model.Departamento" class="form-select">
+                <option value="">-- Selecciona --</option>
+                <option>Frutas</option>
+                <option>Verduras</option>
+                <option>Lácteos</option>
+            </InputSelect>
+            <ValidationMessage For="@(() => model.Departamento)" />
+        </div>
+
+        @if (editando)
+        {
+            <button type="button" class="btn btn-success me-2" @onclick="Actualizar">Actualizar</button>
+            <button type="button" class="btn btn-secondary" @onclick="CancelarEdicion">Cancelar</button>
+        }
+        else
+        {
+            <button type="submit" class="btn btn-primary">Guardar</button>
+        }
+    </EditForm>
+
+    @if (!string.IsNullOrEmpty(mensajeError))
+    {
+        <div class="alert alert-danger mt-3">@mensajeError</div>
+    }
+
+    <button class="btn btn-info mt-3" @onclick="MostrarExistencias">Existencias</button>
+
+    <table class="table table-striped mt-4">
+        <thead>
+            <tr>
+                <th>Número</th>
+                <th>Nombre</th>
+                <th>Departamento</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var p in productos)
+            {
+                <tr>
+                    <td>@p.NumInventario</td>
+                    <td>@p.Nombre</td>
+                    <td>@p.Departamento</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning me-2" @onclick="() => Editar(p)">Editar</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => Eliminar(p)">Eliminar</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+<h4>Existencias por Departamento</h4>
+<table class="table table-bordered">
+<thead>
+<tr>
+<th>Departamento</th>
+<th>Cantidad de Productos</th>
+</tr>
+</thead>
+<tbody>
+@foreach (var grupo in productos.GroupBy(p => p.Departamento))
+{
+<tr>
+<td>@grupo.Key</td>
+<td>@grupo.Count()</td>
+</tr>
+}
+</tbody>
+</table>
+    <button class="btn btn-secondary" @onclick="MostrarListado">Listado</button>
+}
+
+@code {
+public class Product
+{
+[Required(ErrorMessage = "El número de inventario es obligatorio")]
+[Range(1, int.MaxValue, ErrorMessage = "Debe ser un número entero positivo")]
+public int NumInventario { get; set; }
+        [Required(ErrorMessage = "El nombre no debe ser vacío")]
+        [StringLength(200, ErrorMessage = "El nombre no puede superar los 200 caracteres")]
+        public string? Nombre { get; set; }
+
+        [Required(ErrorMessage = "Debes seleccionar un departamento")]
+        public string? Departamento { get; set; }
+    }
+
+    // Variables de la página
+    private Product model = new();
+    private List<Product> productos = new()
+{
+    new Product { NumInventario = 1, Nombre = "Ejemplo", Departamento = "Frutas" },
+};
+
+    private string? mensajeError;
+    private bool editando = false;
+    private Product? productoEditando;
+    private bool mostrarExistencias = false;
+
+    // --- Métodos ---
+    private void Guardar()
+    {
+        mensajeError = null;
+
+        // Validar inventario único
+        if (productos.Any(p => p.NumInventario == model.NumInventario))
+        {
+            mensajeError = "El número de inventario ya existe.";
+            return;
+        }
+
+        productos.Add(new Product
+        {
+            NumInventario = model.NumInventario,
+            Nombre = model.Nombre,
+            Departamento = model.Departamento
+        });
+
+        model = new Product(); // limpiar formulario
+    }
+
+    private void Eliminar(Product p)
+    {
+        productos.Remove(p);
+    }
+
+    private void Editar(Product p)
+    {
+        model = new Product
+        {
+            NumInventario = p.NumInventario,
+            Nombre = p.Nombre,
+            Departamento = p.Departamento
+        };
+        productoEditando = p;
+        editando = true;
+        mensajeError = null;
+    }
+
+    private void Actualizar()
+    {
+        if (productoEditando == null) return;
+
+        // Validar número duplicado (excepto el mismo registro)
+        if (productos.Any(p => p.NumInventario == model.NumInventario && p != productoEditando))
+        {
+            mensajeError = "El número de inventario ya existe.";
+            return;
+        }
+
+        productoEditando.NumInventario = model.NumInventario;
+        productoEditando.Nombre = model.Nombre;
+        productoEditando.Departamento = model.Departamento;
+
+        CancelarEdicion();
+    }
+
+    private void CancelarEdicion()
+    {
+        editando = false;
+        productoEditando = null;
+        model = new Product();
+        mensajeError = null;
+    }
+
+    private void MostrarExistencias()
+    {
+        mostrarExistencias = true;
+    }
+
+    private void MostrarListado()
+    {
+        mostrarExistencias = false;
+    }
+}
